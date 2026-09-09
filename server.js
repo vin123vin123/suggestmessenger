@@ -7,11 +7,18 @@ const bcrypt = require('bcryptjs');
 const app = express();
 app.use(express.json());
 const server = http.createServer(app);
-const io = new Server(server);
 
-// 1. MongoDB Connection
-// Change connection string if your MongoDB is hosted elsewhere
-mongoose.connect('mongodb://localhost:27017/chatdb')
+// Configure Socket.io with CORS enabled so your Python app can connect externally
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+// 1. Dynamic MongoDB Connection via Render Environment Variables
+const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/chatdb';
+mongoose.connect(mongoURI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
@@ -22,12 +29,9 @@ const userSchema = new mongoose.Schema({
 });
 
 const User = mongoose.model('User', userSchema);
-
-// Memory map to track connected users: { username: socketId }
 const onlineUsers = new Map();
 
 // 3. HTTP REST API Endpoints
-// Register User
 app.post('/api/register', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -43,7 +47,6 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// Login User
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -61,38 +64,32 @@ app.post('/api/login', async (req, res) => {
 
 // 4. Socket.io Real-Time Event Handlers
 io.on('connection', (socket) => {
-  
-  // Register the user to the socket network upon authentication
   socket.on('identify', (username) => {
     socket.username = username;
     onlineUsers.set(username, socket.id);
-    console.log(`User registered: ${username} (${socket.id})`);
+    console.log(`User registered: ${username}`);
   });
 
-  // Handle Private Messaging
   socket.on('private_message', ({ recipient, message }) => {
     const recipientSocketId = onlineUsers.get(recipient);
-    
     if (recipientSocketId) {
-      // Send message to recipient
       io.to(recipientSocketId).emit('msg_receive', {
         sender: socket.username,
         message: message
       });
     } else {
-      // Notify sender if the recipient is offline
-      socket.emit('msg_error', { error: `User ${recipient} is offline or doesn't exist.` });
+      socket.emit('msg_error', { error: `User ${recipient} is offline.` });
     }
   });
 
-  // Handle Disconnections
   socket.on('disconnect', () => {
     if (socket.username) {
       onlineUsers.delete(socket.username);
-      console.log(`User disconnected: ${socket.username}`);
     }
   });
 });
 
-const PORT = 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// 5. Render-specific Port Binding
+// Render binds to port 10000 by default, provided dynamically via process.env.PORT
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
