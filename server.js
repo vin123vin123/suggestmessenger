@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true }
 });
 
-const User = mongoose.model('User', userSchema);
+const User2 = mongoose.model('User2', userSchema);
 const onlineUsers = new Map();
 
 // 3. HTTP REST API Endpoints
@@ -38,8 +38,8 @@ app.post('/api/register', async (req, res) => {
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ username, password: hashedPassword });
-    await user.save();
+    const user2 = new User2({ username, password: hashedPassword });
+    await user2.save();
     
     res.status(201).json({ message: 'User created successfully' });
   } catch (error) {
@@ -50,10 +50,10 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const user = await User.findOne({ username });
-    if (!user) return res.status(400).json({ error: 'Invalid username or password' });
+    const user2 = await User2.findOne({ username });
+    if (!user2) return res.status(400).json({ error: 'Invalid username or password' });
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user2.password);
     if (!isMatch) return res.status(400).json({ error: 'Invalid username or password' });
 
     res.status(200).json({ message: 'Login successful', username });
