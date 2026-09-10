@@ -23,12 +23,14 @@ mongoose.connect(mongoURI)
   .catch(err => console.error('MongoDB connection error:', err));
 
 // 2. Database Schemas
+const newdb = mongoose.connection.useDb('specific_database_name');
+const User2 = newdb.model('User2', userSchema);
 const userSchema = new mongoose.Schema({
   username: { type: String, unique: true, required: true },
   password: { type: String, required: true }
 });
 
-const User2 = mongoose.model('User2', userSchema);
+const User2 = newdb.model('User2', userSchema);
 const onlineUsers = new Map();
 
 // 3. HTTP REST API Endpoints
